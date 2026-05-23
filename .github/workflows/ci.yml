@@ -1,0 +1,81 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test-typescript:
+    name: TypeScript Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        id: setup-node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install Dependencies
+        id: npm-ci
+        run: npm ci
+
+      - name: Check Format
+        id: npm-format-check
+        run: npm run format:check
+
+      - name: Lint
+        id: npm-lint
+        run: npm run lint
+
+      - name: Test
+        id: npm-ci-test
+        run: npm run ci-test
+
+  # Self-test: exercise the action against its own repository to confirm
+  # the bundled dist/index.js works end-to-end on real event payloads.
+  test-action:
+    name: GitHub Actions Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v6
+        with:
+          # Full history isn't strictly required (we query the API, not the
+          # local git history), but matches what production consumers do.
+          fetch-depth: 0
+
+      - name: Test Local Action
+        id: test-action
+        uses: ./
+        with:
+          # Include the action's own source so changes to src/ trigger
+          # should-run=true on every PR and push that actually touches code.
+          include: |
+            src/**
+            action.yml
+            package.json
+          # Ignore markdown so documentation-only changes return false,
+          # which is the canonical motivating use case for this action.
+          ignore: |
+            **/*.md
+
+      - name: Print Outputs
+        id: output
+        run: |
+          echo "should-run:    ${{ steps.test-action.outputs.should-run }}"
+          echo "changed-files: ${{ steps.test-action.outputs.changed-files }}"

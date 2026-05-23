@@ -1,0 +1,59 @@
+name: should-run
+description:
+  Determines whether a workflow job should run based on which files changed
+  against include/ignore glob patterns.
+author: Scott Offen
+
+# Marketplace listing branding. Icon must be one of the Feather icons GitHub
+# accepts; color must be one of the named values GitHub allows.
+branding:
+  icon: git-pull-request
+  color: blue
+
+# Define your inputs here.
+inputs:
+  include:
+    description: |
+      Newline-separated glob patterns. The action returns should-run=true if any
+      changed file matches at least one of these patterns.
+    required: true
+  ignore:
+    description: |
+      Newline-separated glob patterns. A changed file that matches both an include
+      pattern and an ignore pattern is treated as if it had not changed.
+    required: false
+    default: ''
+  always-run-for:
+    description: |
+      Comma-separated list of event names that bypass file filtering and always
+      return should-run=true. Default is 'workflow_dispatch,schedule' since those
+      events do not have a natural file diff. Pass an empty string to disable
+      this behavior entirely (note: filtering still cannot run for events without
+      a diff, so the action will fail open in that case).
+    required: false
+    default: 'workflow_dispatch,schedule'
+  github-token:
+    description: |
+      Token used to call the GitHub Compare API. Defaults to the workflow's
+      auto-provisioned GITHUB_TOKEN, which has read access to the repository
+      contents needed for the compare call. Override only if you need to call
+      across repositories or use a PAT with different scopes.
+    required: false
+    default: ${{ github.token }}
+
+# Define your outputs here.
+outputs:
+  should-run:
+    description: |
+      'true' if at least one changed file matched include and was not excluded by
+      ignore. Always 'true' for events listed in always-run-for, and for any
+      event where a diff cannot be computed (fail-open).
+  changed-files:
+    description: |
+      Newline-separated list of files that matched include and were not excluded
+      by ignore. Empty for events where file change detection does not apply
+      (workflow_dispatch, schedule) or where the action failed open.
+
+runs:
+  using: node24
+  main: dist/index.js
